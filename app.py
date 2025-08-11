@@ -1,10 +1,11 @@
 import asyncio
 import logging
+import httpx
 from fastapi import FastAPI
 from utils.logging import setup_logging
 from schemas.ask import AskRequest, AskResponse
 from agents.planner import plan_urls, PROFILES
-from agents.browser import fetch_html, extract_readable
+from agents.browser import fetch_html, extract_readable, HEADERS
 from agents.synth import synthesize
 from config import settings
 
@@ -23,16 +24,19 @@ async def ask(req: AskRequest):
 
     sem = asyncio.Semaphore(settings.fetch_concurrency)
 
-    async def gather_page(u: str):
-        async with sem:
-            try:
-                html = await fetch_html(u)
-                return extract_readable(html, u)
-            except Exception as exc:
-                logger.warning("failed to fetch %s: %s", u, exc)
-                return None
+    async with httpx.AsyncClient(timeout=30, headers=HEADERS, follow_redirects=True) as client:
 
-    results = await asyncio.gather(*(gather_page(u) for u in urls))
+        async def gather_page(u: str):
+            async with sem:
+                try:
+                    html = await fetch_html(u, client=client)
+                    return extract_readable(html, u)
+                except Exception as exc:
+                    logger.warning("failed to fetch %s: %s", u, exc)
+                    return None
+
+        results = await asyncio.gather(*(gather_page(u) for u in urls))
+
     pages = [r for r in results if r]
 
     answer = await synthesize(req.query, pages, P["synth_tokens"])

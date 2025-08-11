@@ -8,12 +8,20 @@ logger = logging.getLogger(__name__)
 HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36"}
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=8), reraise=True)
-async def fetch_html(url: str) -> str:
-    async with httpx.AsyncClient(timeout=30, headers=HEADERS, follow_redirects=True) as cx:
+async def fetch_html(url: str, client: httpx.AsyncClient | None = None) -> str:
+    """Fetch HTML content for ``url`` using ``client`` if provided."""
+
+    async def _get(cx: httpx.AsyncClient) -> str:
         r = await cx.get(url)
         r.raise_for_status()
         logger.debug("fetched %s", url)
         return r.text
+
+    if client is not None:
+        return await _get(client)
+
+    async with httpx.AsyncClient(timeout=30, headers=HEADERS, follow_redirects=True) as cx:
+        return await _get(cx)
 
 def extract_readable(html: str, url: str) -> dict:
     # trafilatura peut retourner None -> fallback BS4
