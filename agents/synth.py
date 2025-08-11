@@ -1,8 +1,8 @@
-import os
+from config import settings
 from services.ollama_client import generate
 
-DEFAULT_BIG = os.getenv("DEFAULT_BIG_MODEL", "gpt-oss:20b")
-DEFAULT_SMALL = os.getenv("DEFAULT_SMALL_MODEL", "qwen2.5:7b")
+DEFAULT_BIG = settings.default_big_model
+DEFAULT_SMALL = settings.default_small_model
 
 async def synthesize(query: str, docs: list[dict], task_tokens: int):
     corpus = "\n\n".join([f"### {d['title']}\nURL: {d['url']}\n{d['text']}" for d in docs])

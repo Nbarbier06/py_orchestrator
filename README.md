@@ -1,104 +1,38 @@
-# Py Orchestrator
+# py_orchestrator
 
-Orchestrateur Python minimaliste pour interroger un LLM via Open-WebUI.  
-Le service planifie des URLs, extrait leur contenu et synthétise une réponse argumentée.
+Minimal Python orchestrator for [Open WebUI](https://github.com/open-webui). It exposes a
+FastAPI service able to plan web searches, retrieve pages and synthesise an answer using
+local LLMs served by [Ollama](https://ollama.ai/).
 
-## Sommaire
-1. [Fonctionnalités](#fonctionnalités)
-2. [Architecture](#architecture)
-3. [Installation](#installation)
-4. [Utilisation](#utilisation)
-5. [Variables d'environnement](#variables-denvironnement)
-6. [API](#api)
-7. [Licence](#licence)
+## Configuration
 
-## Fonctionnalités
-- Planification d’URLs pertinentes via un modèle léger.
-- Téléchargement et extraction de texte lisible (Trafilatura/BeautifulSoup).
-- Synthèse multi‑documents par un modèle plus grand.
-- API FastAPI prête pour intégration avec Open-WebUI.
+Settings are loaded from environment variables using `pydantic-settings`. The most
+relevant options are:
 
-## Architecture
-```
-app.py                 # Entrée FastAPI
-agents/
-  planner.py           # Génère la liste d’URLs
-  browser.py           # Télécharge et nettoie les pages
-  synth.py             # Produit la synthèse finale
-services/
-  ollama_client.py     # Client HTTP pour Ollama (réessais + sélection d’hôte)
-schemas/
-  ask.py               # Modèles Pydantic de requête/réponse
-utils/
-  logging.py           # Configuration du logging
-```
+| Variable | Description | Default |
+| --- | --- | --- |
+| `DEFAULT_SMALL_MODEL` | Model used for lightweight tasks | `qwen2.5:7b` |
+| `DEFAULT_BIG_MODEL` | Model used for heavier tasks | `gpt-oss:20b` |
+| `NAS_OLLAMA` | Base URL of the NAS Ollama instance | `http://localhost:11434` |
+| `LAPTOP_OLLAMA` | Base URL of the laptop Ollama instance | `http://192.168.1.20:11434` |
+| `FETCH_CONCURRENCY` | Max concurrent page fetches | `5` |
 
-## Installation
+## Development
 
-### Prérequis
-- Python 3.11+
-- [Ollama](https://github.com/ollama/ollama) ou service compatible
-- `pip`, `git`
+Install dependencies and run the API:
 
-### Installation locale
 ```bash
-git clone https://github.com/.../py_orchestrator.git
-cd py_orchestrator
-python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-uvicorn app:app --reload --port 8088
+uvicorn app:app --reload
 ```
 
-### Via Docker
+Run tests (none are present yet but the command validates the environment):
+
 ```bash
-docker build -t py_orchestrator .
-docker run -p 8088:8088 \
-  -e NAS_OLLAMA=http://nas:11434 \
-  -e LAPTOP_OLLAMA=http://laptop:11434 \
-  py_orchestrator
+pytest
 ```
 
-## Utilisation
+## Endpoints
 
-### Endpoint `/health`
-```bash
-curl http://localhost:8088/health
-# {"ok": true}
-```
-
-### Endpoint `/ask`
-```bash
-curl -X POST http://localhost:8088/ask -H "Content-Type: application/json" -d '{
-  "query": "Quel est l'état actuel de la fusion froide ?",
-  "mode": "balanced",
-  "override_urls": ["https://example.org/article"]
-}'
-```
-Réponse (exemple) :
-```json
-{
-  "answer": "…",
-  "sources": [
-    "https://example.org/article",
-    "https://..."
-  ]
-}
-```
-
-## Variables d'environnement
-| Variable | Description | Valeur par défaut |
-|----------|-------------|------------------|
-| `NAS_OLLAMA` | URL du serveur Ollama principal | `http://localhost:11434` |
-| `LAPTOP_OLLAMA` | URL alternative utilisée pour les tâches volumineuses | `http://192.168.1.20:11434` |
-| `DEFAULT_SMALL_MODEL` | Modèle léger pour la planification | `qwen2.5:7b` |
-| `DEFAULT_BIG_MODEL` | Modèle plus grand pour la synthèse | `gpt-oss:20b` |
-
-## API
-- `GET /health` : test de disponibilité.
-- `POST /ask` :
-  - **Body** : `{"query": str, "mode": "quick|balanced|deep", "override_urls": [str]}`.
-  - **Réponse** : `{"answer": str, "sources": [str]}`.
-
-## Licence
-Projet distribué sous licence [MIT](LICENSE).
-
+* `GET /health` – basic health check.
+* `POST /ask` – accepts an `AskRequest` and returns a synthesised answer.

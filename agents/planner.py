@@ -1,7 +1,8 @@
-import os
+from config import settings
 from services.ollama_client import generate
 
-DEFAULT_SMALL = os.getenv("DEFAULT_SMALL_MODEL", "qwen2.5:7b")
+# model used for small planning tasks
+DEFAULT_SMALL = settings.default_small_model
 
 PROFILES = {
     "quick":    {"max_urls": 4,  "task_tokens": 800,  "synth_tokens": 800},
