@@ -1,3 +1,5 @@
+"""Planning agent for building URL lists with language model assistance."""
+
 from config import settings
 from services.ollama_client import generate
 
@@ -10,7 +12,21 @@ PROFILES = {
     "deep":     {"max_urls": 15, "task_tokens": 2500, "synth_tokens": 2500},
 }
 
-async def plan_urls(query: str, mode: str):
+async def plan_urls(query: str, mode: str) -> tuple[list[str], dict[str, int]]:
+    """Generate a list of relevant URLs for the given query.
+
+    Uses a small model to propose candidate URLs, then deduplicates and clamps
+    the results based on a profile selected by *mode*.
+
+    Args:
+        query: The user's search query.
+        mode: Name of the profile to use when planning.
+
+    Returns:
+        A tuple containing the final list of URLs and the profile configuration
+        that was applied.
+    """
+
     P = PROFILES.get(mode, PROFILES["balanced"])
     prompt = (
         "Liste 20 URLs pertinentes et récentes pour répondre à la question ci-dessous. "
@@ -23,6 +39,8 @@ async def plan_urls(query: str, mode: str):
     final, seen = [], set()
     for u in urls:
         if u not in seen:
-            final.append(u); seen.add(u)
-        if len(final) >= P["max_urls"]: break
+            final.append(u)
+            seen.add(u)
+        if len(final) >= P["max_urls"]:
+            break
     return final, P
