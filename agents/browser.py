@@ -1,13 +1,18 @@
-import httpx, re
+import httpx, re, logging
 from bs4 import BeautifulSoup
 import trafilatura
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+logger = logging.getLogger(__name__)
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36"}
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=8), reraise=True)
 async def fetch_html(url: str) -> str:
     async with httpx.AsyncClient(timeout=30, headers=HEADERS, follow_redirects=True) as cx:
         r = await cx.get(url)
         r.raise_for_status()
+        logger.debug("fetched %s", url)
         return r.text
 
 def extract_readable(html: str, url: str) -> dict:
